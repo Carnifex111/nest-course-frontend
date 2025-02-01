@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useUnit } from "effector-react";
-import { $cats, addCat, loadCats } from "./store/cat";
+import { $cats, addCat, loadCats, deleteCat, updateCat } from "./store/cat";
 import { Cat } from "./types/cat";
 import {
   AdaptivityProvider,
@@ -17,17 +17,20 @@ import {
 } from "@vkontakte/vkui";
 
 import "@vkontakte/vkui/dist/vkui.css";
+import { Icon20MessageAddOutline } from "@vkontakte/icons";
 
 function App() {
-  const cats = useUnit($cats); // Получаем состояние котов
+  const cats = useUnit($cats);
   const [form, setForm] = useState<Partial<Omit<Cat, "id">>>({
     name: "",
     age: 0,
     breed: "",
   });
 
+  const [editCat, setEditCat] = useState<Cat | null>(null);
+
   useEffect(() => {
-    loadCats(); // Загружаем список котов при монтировании
+    loadCats();
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -36,11 +39,24 @@ function App() {
       alert("Пожалуйста, заполните имя и возраст");
       return;
     }
-    addCat({
-      ...form,
-      id: 0, // ID генерируется сервером
-    } as Cat);
-    setForm({ name: "", age: 0, breed: "" }); // Очищаем форму
+    if (editCat) {
+      updateCat({ ...editCat, ...form } as Cat);
+      setEditCat(null);
+    } else {
+      addCat({ ...form } as Cat);
+    }
+    setForm({ name: "", age: 0, breed: "" });
+  };
+
+  const handleEdit = (cat: Cat) => {
+    setEditCat(cat);
+    setForm({ name: cat.name, age: cat.age, breed: cat.breed });
+  };
+
+  const handleDelete = (id: number) => {
+    if (window.confirm("Вы уверены, что хотите удалить кота?")) {
+      deleteCat(id);
+    }
   };
 
   return (
@@ -57,6 +73,16 @@ function App() {
                   <li key={cat.id} style={{ marginBottom: "8px" }}>
                     <strong>{cat.name}</strong> — {cat.age} лет, порода:{" "}
                     {cat.breed}
+                    <div
+                      style={{ display: "flex", gap: "8px", marginTop: "8px" }}
+                    >
+                      <Button size="s" onClick={() => handleEdit(cat)}>
+                        Редактировать
+                      </Button>
+                      <Button size="s" onClick={() => handleDelete(cat.id)}>
+                        Удалить
+                      </Button>
+                    </div>
                     <Separator style={{ margin: "8px 0" }} />
                   </li>
                 ))}
@@ -65,7 +91,12 @@ function App() {
           </Group>
 
           <Group>
-            <PanelHeader>Добавить кота</PanelHeader>
+            <PanelHeader>
+              {editCat
+                ? `Редактирование кота: ${editCat.name}`
+                : "Добавить кота"}{" "}
+              <Icon20MessageAddOutline />
+            </PanelHeader>
             <form onSubmit={handleSubmit}>
               <FormLayoutGroup mode="vertical">
                 <FormItem top="Имя">
@@ -95,7 +126,7 @@ function App() {
                 </FormItem>
                 <FormItem>
                   <Button size="l" stretched type="submit">
-                    Добавить кота
+                    {editCat ? "Сохранить изменения" : "Добавить кота"}
                   </Button>
                 </FormItem>
               </FormLayoutGroup>
